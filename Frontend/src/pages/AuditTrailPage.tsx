@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { mockAuditLogs } from '@/data/mockData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { PaginationControls } from '@/components/PaginationControls';
 import { EmptyTableState } from '@/components/EmptyTableState';
-import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuditLogs } from '@/hooks/useAuditLogs';
 
 export default function AuditTrailPage() {
   const [actionFilter, setActionFilter] = useState('all');
@@ -18,8 +17,10 @@ export default function AuditTrailPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const pageSize = 6;
 
-  const filtered = mockAuditLogs.filter(l => {
-    const matchAction = actionFilter === 'all' || l.actionType === actionFilter;
+  const { data: allLogs = [], isLoading } = useAuditLogs(0, 500);
+
+  const filtered = allLogs.filter((l: any) => {
+    const matchAction = actionFilter === 'all' || l.action_type === actionFilter;
     const matchEntity = entityFilter === 'all' || l.entity === entityFilter;
     return matchAction && matchEntity;
   });
@@ -44,7 +45,7 @@ export default function AuditTrailPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Audit Trail</h1>
-            <p className="page-subtitle">{mockAuditLogs.length} total logs</p>
+            <p className="page-subtitle">{allLogs.length} total logs</p>
           </div>
         </div>
 
@@ -84,8 +85,10 @@ export default function AuditTrailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.length === 0 ? <EmptyTableState message="No audit logs found" colSpan={6} /> :
-                paginated.map(log => (
+              {isLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+              ) : paginated.length === 0 ? <EmptyTableState message="No audit logs found" colSpan={6} /> :
+                paginated.map((log: any) => (
                   <Collapsible key={log.id} asChild open={expandedId === log.id} onOpenChange={open => setExpandedId(open ? log.id : null)}>
                     <>
                       <CollapsibleTrigger asChild>
@@ -94,10 +97,10 @@ export default function AuditTrailPage() {
                             {expandedId === log.id ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
                           </TableCell>
                           <TableCell className="text-sm">{format(new Date(log.timestamp), 'MMM dd, yyyy HH:mm')}</TableCell>
-                          <TableCell><Badge variant="outline" className={actionColors[log.actionType]}>{log.actionType}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className={actionColors[log.action_type]}>{log.action_type}</Badge></TableCell>
                           <TableCell className="text-sm">{log.entity}</TableCell>
-                          <TableCell className="text-sm font-mono text-muted-foreground">{log.entityId}</TableCell>
-                          <TableCell className="text-sm">{log.performedBy}</TableCell>
+                          <TableCell className="text-sm font-mono text-muted-foreground">{log.entity_id}</TableCell>
+                          <TableCell className="text-sm">{log.performed_by}</TableCell>
                         </TableRow>
                       </CollapsibleTrigger>
                       <CollapsibleContent asChild>
@@ -106,11 +109,11 @@ export default function AuditTrailPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
                               <div>
                                 <p className="text-xs font-medium text-muted-foreground mb-1">Old Value</p>
-                                <pre className="text-xs bg-card p-3 rounded-lg overflow-auto max-h-32 border border-border/50">{formatJson(log.oldValue)}</pre>
+                                <pre className="text-xs bg-card p-3 rounded-lg overflow-auto max-h-32 border border-border/50">{formatJson(log.old_value)}</pre>
                               </div>
                               <div>
                                 <p className="text-xs font-medium text-muted-foreground mb-1">New Value</p>
-                                <pre className="text-xs bg-card p-3 rounded-lg overflow-auto max-h-32 border border-border/50">{formatJson(log.newValue)}</pre>
+                                <pre className="text-xs bg-card p-3 rounded-lg overflow-auto max-h-32 border border-border/50">{formatJson(log.new_value)}</pre>
                               </div>
                             </div>
                           </TableCell>

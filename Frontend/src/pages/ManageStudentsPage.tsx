@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { mockStudents, mockCourses } from '@/data/mockData';
+import { useStudents, useUpdateStudent, useDeleteStudent } from '@/hooks/useStudents';
 import { DEGREE_PROGRAMS, Student } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,10 @@ import { toast } from 'sonner';
 
 export default function ManageStudentsPage() {
   const navigate = useNavigate();
-  const [students, setStudents] = useState<Student[]>(mockStudents);
+  const { data: students = [], isLoading } = useStudents();
+  const updateStudent = useUpdateStudent();
+  const deleteStudent = useDeleteStudent();
+
   const [search, setSearch] = useState('');
   const [filterProgram, setFilterProgram] = useState('all');
   const [page, setPage] = useState(1);
@@ -30,7 +33,7 @@ export default function ManageStudentsPage() {
   const [editLastName, setEditLastName] = useState('');
   const pageSize = 5;
 
-  const filtered = students.filter(s => {
+  const filtered = students.filter((s: Student) => {
     const matchSearch = !search || s.studentNumber.toLowerCase().includes(search.toLowerCase()) ||
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase());
     const matchProgram = filterProgram === 'all' || s.degreeProgram === filterProgram;
@@ -42,9 +45,12 @@ export default function ManageStudentsPage() {
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    setStudents(prev => prev.map(s => s.id === deleteTarget.id ? { ...s, status: 'Inactive' as const } : s));
-    toast.success(`Student ${deleteTarget.studentNumber} marked as inactive`);
-    setDeleteTarget(null);
+    deleteStudent.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast.success(`Student ${deleteTarget.studentNumber} marked as inactive`);
+        setDeleteTarget(null);
+      },
+    });
   };
 
   const openEdit = (s: Student) => {
@@ -55,12 +61,16 @@ export default function ManageStudentsPage() {
 
   const handleEdit = () => {
     if (!editTarget) return;
-    setStudents(prev => prev.map(s => s.id === editTarget.id ? { ...s, firstName: editFirstName, lastName: editLastName } : s));
-    toast.success('Student updated successfully');
-    setEditTarget(null);
+    updateStudent.mutate(
+      { id: editTarget.id, data: { first_name: editFirstName, last_name: editLastName } },
+      {
+        onSuccess: () => {
+          toast.success('Student updated successfully');
+          setEditTarget(null);
+        },
+      }
+    );
   };
-
-  const getProgramName = (code: string) => DEGREE_PROGRAMS.find(p => p.code === code)?.name || code;
 
   return (
     <DashboardLayout>
@@ -104,9 +114,11 @@ export default function ManageStudentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.length === 0 ? (
+              {isLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+              ) : paginated.length === 0 ? (
                 <EmptyTableState message="No students found" colSpan={6} />
-              ) : paginated.map(s => (
+              ) : paginated.map((s: Student) => (
                 <TableRow key={s.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-mono text-sm font-medium">{s.studentNumber}</TableCell>
                   <TableCell className="font-medium">{s.firstName} {s.lastName}</TableCell>
@@ -148,29 +160,20 @@ export default function ManageStudentsPage() {
 
         {/* Delete Confirm */}
         <ConfirmDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}
-          title="Delete Student" description={`Are you sure you want to deactivate ${deleteTarget?.firstName} ${deleteTarget?.lastName} (${deleteTarget?.studentNumber})? This will mark the student as inactive.`}
+          title="Delete Student" description={`Deactivate ${deleteTarget?.firstName} ${deleteTarget?.lastName} (${deleteTarget?.studentNumber})?`}
           onConfirm={handleDelete} confirmLabel="Delete" />
 
         {/* Edit Drawer */}
         <Sheet open={!!editTarget} onOpenChange={() => setEditTarget(null)}>
           <SheetContent className="sm:max-w-md">
-            <SheetHeader>
-              <SheetTitle>Edit Student</SheetTitle>
-            </SheetHeader>
+            <SheetHeader><SheetTitle>Edit Student</SheetTitle></SheetHeader>
             <div className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label>Student Number</Label>
-                <Input value={editTarget?.studentNumber || ''} disabled className="font-mono" />
-              </div>
-              <div className="space-y-2">
-                <Label>First Name</Label>
-                <Input value={editFirstName} onChange={e => setEditFirstName(e.target.value)} className="input-field" />
-              </div>
-              <div className="space-y-2">
-                <Label>Last Name</Label>
-                <Input value={editLastName} onChange={e => setEditLastName(e.target.value)} className="input-field" />
-              </div>
-              <Button onClick={handleEdit} className="w-full btn-glow mt-4">Save Changes</Button>
+              <div className="space-y-2"><Label>Student Number</Label><Input value={editTarget?.studentNumber || ''} disabled className="font-mono" /></div>
+              <div className="space-y-2"><Label>First Name</Label><Input value={editFirstName} onChange={e => setEditFirstName(e.target.value)} className="input-field" /></div>
+              <div className="space-y-2"><Label>Last Name</Label><Input value={editLastName} onChange={e => setEditLastName(e.target.value)} className="input-field" /></div>
+              <Button onClick={handleEdit} className="w-full btn-glow mt-4" disabled={updateStudent.isPending}>
+                {updateStudent.isPending ? 'Saving…' : 'Save Changes'}
+              </Button>
             </div>
           </SheetContent>
         </Sheet>

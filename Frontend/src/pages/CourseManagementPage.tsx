@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { mockCourses as initialCourses } from '@/data/mockData';
 import { Course } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +11,14 @@ import { EmptyTableState } from '@/components/EmptyTableState';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { useCourses, useCreateCourse, useUpdateCourse, useDeleteCourse } from '@/hooks/useCourses';
 
 export default function CourseManagementPage() {
-  const [courses, setCourses] = useState<Course[]>(initialCourses);
+  const { data: courses = [], isLoading } = useCourses();
+  const createCourse = useCreateCourse();
+  const updateCourse = useUpdateCourse();
+  const deleteCourse = useDeleteCourse();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editCourse, setEditCourse] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
@@ -37,21 +41,23 @@ export default function CourseManagementPage() {
 
   const handleSave = () => {
     if (!validate()) return;
+    const payload = { course_code: code, course_name: name, credits: Number(credits) };
     if (editCourse) {
-      setCourses(prev => prev.map(c => c.id === editCourse.id ? { ...c, courseCode: code, courseName: name, credits: Number(credits) } : c));
-      toast.success('Course updated');
+      updateCourse.mutate({ id: editCourse.id, data: payload }, {
+        onSuccess: () => { toast.success('Course updated'); setModalOpen(false); },
+      });
     } else {
-      setCourses(prev => [...prev, { id: String(Date.now()), courseCode: code, courseName: name, credits: Number(credits) }]);
-      toast.success('Course added');
+      createCourse.mutate(payload, {
+        onSuccess: () => { toast.success('Course added'); setModalOpen(false); },
+      });
     }
-    setModalOpen(false);
   };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
-    setCourses(prev => prev.filter(c => c.id !== deleteTarget.id));
-    toast.success('Course deleted');
-    setDeleteTarget(null);
+    deleteCourse.mutate(deleteTarget.id, {
+      onSuccess: () => { toast.success('Course deleted'); setDeleteTarget(null); },
+    });
   };
 
   return (
@@ -76,8 +82,10 @@ export default function CourseManagementPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.length === 0 ? <EmptyTableState message="No courses found" colSpan={4} /> :
-                courses.map(c => (
+              {isLoading ? (
+                <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+              ) : courses.length === 0 ? <EmptyTableState message="No courses found" colSpan={4} /> :
+                courses.map((c: Course) => (
                   <TableRow key={c.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell className="font-mono font-medium">{c.courseCode}</TableCell>
                     <TableCell>{c.courseName}</TableCell>
@@ -97,9 +105,7 @@ export default function CourseManagementPage() {
         {/* Add/Edit Modal */}
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="glass-card-subtle sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{editCourse ? 'Edit Course' : 'Add Course'}</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{editCourse ? 'Edit Course' : 'Add Course'}</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label>Course Code</Label>
@@ -116,7 +122,9 @@ export default function CourseManagementPage() {
                 <Input type="number" value={credits} onChange={e => setCredits(e.target.value)} placeholder="3" className={`input-field ${errors.credits ? 'border-destructive' : ''}`} />
                 {errors.credits && <p className="text-xs text-destructive">{errors.credits}</p>}
               </div>
-              <Button onClick={handleSave} className="w-full btn-glow">{editCourse ? 'Update Course' : 'Add Course'}</Button>
+              <Button onClick={handleSave} className="w-full btn-glow" disabled={createCourse.isPending || updateCourse.isPending}>
+                {createCourse.isPending || updateCourse.isPending ? 'Saving…' : editCourse ? 'Update Course' : 'Add Course'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

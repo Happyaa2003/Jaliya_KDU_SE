@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   LayoutDashboard, UserPlus, Users, BookOpen, ClipboardList,
-  FileText, Settings, LogOut, Menu, X, ChevronLeft, GraduationCap, User
+  FileText, Settings, LogOut, Menu, X, ChevronLeft, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ interface LayoutContextType {
   setSidebarOpen: (open: boolean) => void;
 }
 
-const LayoutContext = createContext<LayoutContextType>({ sidebarOpen: true, setSidebarOpen: () => {} });
+const LayoutContext = createContext<LayoutContextType>({ sidebarOpen: true, setSidebarOpen: () => { } });
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -60,12 +60,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             {sidebarOpen ? (
               <>
                 <Link to="/dashboard" className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-primary-foreground" />
-                  </div>
+                  <img src="/KDU-LOGO.png" alt="KDU Logo" className="w-10 h-10 object-contain rounded-lg" />
                   <div className="leading-tight">
-                    <span className="text-sm font-bold text-foreground block">SMS</span>
-                    <span className="text-[10px] text-muted-foreground">Student Management</span>
+                    <span className="text-sm font-bold text-foreground block">KDU SMS</span>
+                    <span className="text-[11px] text-muted-foreground">Student Management</span>
                   </div>
                 </Link>
                 <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors hidden lg:flex">
@@ -74,7 +72,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </>
             ) : (
               <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                <GraduationCap className="w-5 h-5 text-primary" />
+                <img src="/KDU-LOGO.png" alt="KDU" className="w-8 h-8 object-contain" />
               </button>
             )}
           </div>
@@ -134,7 +132,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <h1 className="text-base font-semibold text-foreground hidden sm:block">Student Management System</h1>
+              <div className="hidden sm:flex items-center gap-2">
+                <img src="/KDU-LOGO.png" alt="KDU" className="w-7 h-7 object-contain" />
+                <h1 className="text-base font-semibold text-foreground">KDU Student Management System</h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">

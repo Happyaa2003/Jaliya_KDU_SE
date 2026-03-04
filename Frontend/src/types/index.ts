@@ -1,3 +1,5 @@
+// Frontend type adapter — maps snake_case API response to camelCase TS types
+
 export interface Student {
   id: string;
   studentNumber: string;
@@ -31,8 +33,8 @@ export interface Enrollment {
 export interface AuditLog {
   id: string;
   timestamp: string;
-  actionType: 'Create' | 'Update' | 'Delete' | 'Enroll';
-  entity: 'Student' | 'Course' | 'Enrollment';
+  actionType: string;
+  entity: string;
   entityId: string;
   performedBy: string;
   oldValue: string;
@@ -55,3 +57,32 @@ export const DEGREE_PROGRAMS: DegreeProgram[] = [
 ];
 
 export const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer'];
+
+// ─── API response transformers ─────────────────────────────────────────────
+// The backend returns snake_case; these helpers transform to camelCase for the
+// existing component props.
+
+export function transformStudent(raw: any): Student {
+  return {
+    id: raw.id,
+    studentNumber: raw.student_number,
+    firstName: raw.first_name,
+    lastName: raw.last_name,
+    address: raw.address,
+    birthday: raw.birthday,
+    degreeProgram: raw.degree_program,
+    enrolledCourses: raw.enrolled_courses ?? [],
+    status: raw.status,
+    createdAt: raw.created_at ?? '',
+    updatedAt: raw.updated_at ?? '',
+  };
+}
+
+export function transformCourse(raw: any): Course {
+  return {
+    id: raw.id,
+    courseCode: raw.course_code,
+    courseName: raw.course_name,
+    credits: raw.credits,
+  };
+}

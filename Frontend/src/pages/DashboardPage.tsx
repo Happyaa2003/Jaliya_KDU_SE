@@ -1,16 +1,16 @@
 import { Users, BookOpen, ClipboardList, FileText } from 'lucide-react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { StatCard } from '@/components/StatCard';
-import { mockStudents, mockCourses, mockEnrollments, mockAuditLogs } from '@/data/mockData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useAuditLogs } from '@/hooks/useAuditLogs';
 
 export default function DashboardPage() {
-  const activeStudents = mockStudents.filter(s => s.status === 'Active').length;
-  const activeEnrollments = mockEnrollments.filter(e => e.status === 'Enrolled').length;
-  const recentLogs = mockAuditLogs.slice(0, 5);
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: auditLogs, isLoading: logsLoading } = useAuditLogs(0, 5);
 
   const actionColors: Record<string, string> = {
     Create: 'bg-success/10 text-success border-success/20',
@@ -31,10 +31,10 @@ export default function DashboardPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total Students" value={mockStudents.length} icon={Users} color="primary" trend={`${activeStudents} active`} />
-          <StatCard title="Total Courses" value={mockCourses.length} icon={BookOpen} color="success" />
-          <StatCard title="Active Enrollments" value={activeEnrollments} icon={ClipboardList} color="warning" />
-          <StatCard title="Audit Logs" value={mockAuditLogs.length} icon={FileText} color="info" />
+          <StatCard title="Total Students" value={statsLoading ? '…' : stats?.total_students ?? 0} icon={Users} color="primary" trend={statsLoading ? '' : `${stats?.active_students ?? 0} active`} />
+          <StatCard title="Total Courses" value={statsLoading ? '…' : stats?.total_courses ?? 0} icon={BookOpen} color="success" />
+          <StatCard title="Active Enrollments" value={statsLoading ? '…' : stats?.active_enrollments ?? 0} icon={ClipboardList} color="warning" />
+          <StatCard title="Audit Logs" value={statsLoading ? '…' : stats?.total_logs ?? 0} icon={FileText} color="info" />
         </div>
 
         {/* Recent Activity */}
@@ -54,15 +54,17 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentLogs.map(log => (
+              {logsLoading ? (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              ) : (auditLogs ?? []).map((log: any) => (
                 <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="text-sm">{format(new Date(log.timestamp), 'MMM dd, yyyy HH:mm')}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={actionColors[log.actionType]}>{log.actionType}</Badge>
+                    <Badge variant="outline" className={actionColors[log.action_type]}>{log.action_type}</Badge>
                   </TableCell>
                   <TableCell className="text-sm">{log.entity}</TableCell>
-                  <TableCell className="text-sm font-mono text-muted-foreground">{log.entityId}</TableCell>
-                  <TableCell className="text-sm">{log.performedBy}</TableCell>
+                  <TableCell className="text-sm font-mono text-muted-foreground">{log.entity_id}</TableCell>
+                  <TableCell className="text-sm">{log.performed_by}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

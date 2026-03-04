@@ -1,18 +1,88 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { mockStudents, mockCourses, mockEnrollments } from '@/data/mockData';
 import { DEGREE_PROGRAMS } from '@/types';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
+import { useStudent, useUpdateStudent, useDeleteStudent } from '@/hooks/useStudents';
+import { useCourses } from '@/hooks/useCourses';
+import { useEnrollments } from '@/hooks/useEnrollments';
 
 export default function StudentProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const student = mockStudents.find(s => s.id === id);
+
+  const { data: student, isLoading } = useStudent(id!);
+  const { data: courses = [] } = useCourses();
+  const { data: enrollmentHistory = [] } = useEnrollments(id);
+  const updateStudent = useUpdateStudent();
+  const deleteStudent = useDeleteStudent();
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editDegree, setEditDegree] = useState('');
+
+  const openEdit = () => {
+    if (!student) return;
+    setEditFirstName(student.firstName);
+    setEditLastName(student.lastName);
+    setEditAddress(student.address);
+    setEditDegree(student.degreeProgram);
+    setEditOpen(true);
+  };
+
+  const handleEdit = () => {
+    if (!student) return;
+    updateStudent.mutate(
+      {
+        id: student.id,
+        data: {
+          first_name: editFirstName,
+          last_name: editLastName,
+          address: editAddress,
+          degree_program: editDegree,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Student updated successfully');
+          setEditOpen(false);
+        },
+      }
+    );
+  };
+
+  const handleDelete = () => {
+    if (!student) return;
+    deleteStudent.mutate(student.id, {
+      onSuccess: () => {
+        toast.success(`${student.firstName} ${student.lastName} marked as inactive`);
+        navigate('/students');
+      },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="page-container flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading student profile…</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!student) {
     return (
@@ -28,8 +98,7 @@ export default function StudentProfilePage() {
   }
 
   const programName = DEGREE_PROGRAMS.find(p => p.code === student.degreeProgram)?.name || student.degreeProgram;
-  const currentCourses = mockCourses.filter(c => student.enrolledCourses.includes(c.courseCode));
-  const enrollmentHistory = mockEnrollments.filter(e => e.studentId === student.id);
+  const currentCourses = courses.filter((c: any) => student.enrolledCourses.includes(c.courseCode));
 
   return (
     <DashboardLayout>
@@ -55,31 +124,27 @@ export default function StudentProfilePage() {
             <div className="space-y-4 text-sm">
               <div className="flex items-start gap-3">
                 <GraduationCap className="w-4 h-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-muted-foreground">Degree Program</p>
-                  <p className="font-medium">{programName}</p>
-                </div>
+                <div><p className="text-muted-foreground">Degree Program</p><p className="font-medium">{programName}</p></div>
               </div>
               <div className="flex items-start gap-3">
                 <Calendar className="w-4 h-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-muted-foreground">Birthday</p>
-                  <p className="font-medium">{format(new Date(student.birthday), 'MMMM d, yyyy')}</p>
-                </div>
+                <div><p className="text-muted-foreground">Birthday</p><p className="font-medium">{format(new Date(student.birthday), 'MMMM d, yyyy')}</p></div>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-muted-foreground">Address</p>
-                  <p className="font-medium">{student.address}</p>
-                </div>
+                <div><p className="text-muted-foreground">Address</p><p className="font-medium">{student.address}</p></div>
               </div>
             </div>
             <div className="flex gap-2 mt-6 pt-6 border-t border-border/50">
-              <Button variant="outline" className="flex-1" onClick={() => navigate('/students')}>
+              <Button variant="outline" className="flex-1" onClick={openEdit}>
                 <Pencil className="w-4 h-4 mr-2" /> Edit
               </Button>
-              <Button variant="outline" className="text-destructive hover:text-destructive">
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+                disabled={student.status === 'Inactive'}
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
@@ -96,13 +161,13 @@ export default function StudentProfilePage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Course Code</TableHead>
-                    <TableHead>Course Name</TableHead>
-                    <TableHead>Credits</TableHead>
+                    <TableHead>Course Code</TableHead><TableHead>Course Name</TableHead><TableHead>Credits</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentCourses.map(c => (
+                  {currentCourses.length === 0 ? (
+                    <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">No enrolled courses</TableCell></TableRow>
+                  ) : currentCourses.map((c: any) => (
                     <TableRow key={c.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell className="font-mono font-medium">{c.courseCode}</TableCell>
                       <TableCell>{c.courseName}</TableCell>
@@ -121,15 +186,14 @@ export default function StudentProfilePage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Semester</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Semester</TableHead><TableHead>Year</TableHead><TableHead>Course</TableHead><TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {enrollmentHistory.map(e => {
-                    const course = mockCourses.find(c => c.id === e.courseId);
+                  {enrollmentHistory.length === 0 ? (
+                    <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">No history</TableCell></TableRow>
+                  ) : enrollmentHistory.map((e: any) => {
+                    const course = courses.find((c: any) => c.id === e.course_id);
                     return (
                       <TableRow key={e.id} className="hover:bg-muted/50 transition-colors">
                         <TableCell>{e.semester}</TableCell>
@@ -145,6 +209,59 @@ export default function StudentProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Sheet */}
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent className="sm:max-w-md">
+          <SheetHeader><SheetTitle>Edit Student</SheetTitle></SheetHeader>
+          <div className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label>Student Number</Label>
+              <Input value={student.studentNumber} disabled className="font-mono" />
+            </div>
+            <div className="space-y-2">
+              <Label>First Name</Label>
+              <Input value={editFirstName} onChange={e => setEditFirstName(e.target.value)} className="input-field" />
+            </div>
+            <div className="space-y-2">
+              <Label>Last Name</Label>
+              <Input value={editLastName} onChange={e => setEditLastName(e.target.value)} className="input-field" />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={editAddress} onChange={e => setEditAddress(e.target.value)} className="input-field" />
+            </div>
+            <div className="space-y-2">
+              <Label>Degree Program</Label>
+              <Select value={editDegree} onValueChange={setEditDegree}>
+                <SelectTrigger className="input-field"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DEGREE_PROGRAMS.map(p => (
+                    <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleEdit}
+              className="w-full btn-glow mt-4"
+              disabled={updateStudent.isPending}
+            >
+              {updateStudent.isPending ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Deactivate Student"
+        description={`Mark ${student.firstName} ${student.lastName} (${student.studentNumber}) as Inactive? This can be reversed by updating the student's status.`}
+        onConfirm={handleDelete}
+        confirmLabel="Deactivate"
+      />
     </DashboardLayout>
   );
 }
