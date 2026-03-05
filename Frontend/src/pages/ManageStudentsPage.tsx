@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useStudents, useUpdateStudent, useDeleteStudent } from '@/hooks/useStudents';
+import { useStudents, useUpdateStudent, useDeleteStudent, useSetStudentStatus } from '@/hooks/useStudents';
 import { DEGREE_PROGRAMS, Student } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyTableState } from '@/components/EmptyTableState';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
-import { Search, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Search, Eye, Pencil, Trash2, UserCheck } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -28,6 +28,8 @@ export default function ManageStudentsPage() {
   const [filterProgram, setFilterProgram] = useState('all');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+  const [activateTarget, setActivateTarget] = useState<Student | null>(null);
+  const setStudentStatus = useSetStudentStatus();
   const [editTarget, setEditTarget] = useState<Student | null>(null);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
@@ -49,6 +51,16 @@ export default function ManageStudentsPage() {
       onSuccess: () => {
         toast.success(`Student ${deleteTarget.studentNumber} marked as inactive`);
         setDeleteTarget(null);
+      },
+    });
+  };
+
+  const handleActivate = () => {
+    if (!activateTarget) return;
+    setStudentStatus.mutate({ id: activateTarget.id, status: 'Active' }, {
+      onSuccess: () => {
+        toast.success(`Student ${activateTarget.studentNumber} activated successfully`);
+        setActivateTarget(null);
       },
     });
   };
@@ -142,11 +154,19 @@ export default function ManageStudentsPage() {
                           <Pencil className="w-4 h-4" />
                         </Button>
                       </TooltipTrigger><TooltipContent>Edit</TooltipContent></Tooltip>
-                      <Tooltip><TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(s)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger><TooltipContent>Delete</TooltipContent></Tooltip>
+                      {s.status === 'Active' ? (
+                        <Tooltip><TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(s)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger><TooltipContent>Deactivate</TooltipContent></Tooltip>
+                      ) : (
+                        <Tooltip><TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500 hover:text-green-600" onClick={() => setActivateTarget(s)}>
+                            <UserCheck className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger><TooltipContent>Activate</TooltipContent></Tooltip>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -160,8 +180,13 @@ export default function ManageStudentsPage() {
 
         {/* Delete Confirm */}
         <ConfirmDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}
-          title="Delete Student" description={`Deactivate ${deleteTarget?.firstName} ${deleteTarget?.lastName} (${deleteTarget?.studentNumber})?`}
-          onConfirm={handleDelete} confirmLabel="Delete" />
+          title="Deactivate Student" description={`Deactivate ${deleteTarget?.firstName} ${deleteTarget?.lastName} (${deleteTarget?.studentNumber})?`}
+          onConfirm={handleDelete} confirmLabel="Deactivate" />
+
+        {/* Activate Confirm */}
+        <ConfirmDialog open={!!activateTarget} onOpenChange={() => setActivateTarget(null)}
+          title="Activate Student" description={`Activate ${activateTarget?.firstName} ${activateTarget?.lastName} (${activateTarget?.studentNumber})?`}
+          onConfirm={handleActivate} confirmLabel="Activate" />
 
         {/* Edit Drawer */}
         <Sheet open={!!editTarget} onOpenChange={() => setEditTarget(null)}>

@@ -84,3 +84,20 @@ def change_password(
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
     return updated
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: str,
+    current=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete an admin user. Cannot delete your own account."""
+    if str(current.id) == str(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+    deleted = user_repo.delete_user(db, user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found")

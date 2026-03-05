@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usersApi } from '@/services/api';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface AdminUser {
   id: string;
@@ -34,6 +35,10 @@ export default function SettingsPage() {
   const [cpConfirm, setCpConfirm] = useState('');
   const [showCpPass, setShowCpPass] = useState(false);
   const [savingCp, setSavingCp] = useState(false);
+
+  // ── Delete Admin ──────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // ── Logged-in user ────────────────────────────────────────
   const storedUser = (() => {
@@ -94,6 +99,26 @@ export default function SettingsPage() {
       toast.error(err?.response?.data?.detail || 'Failed to change password');
     } finally {
       setSavingCp(false);
+    }
+  };
+
+  const handleDeleteAdmin = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await usersApi.delete(deleteTarget.id);
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+      // If we deleted the selected cp user, select the first remaining
+      if (cpUserId === deleteTarget.id) {
+        const remaining = users.filter(u => u.id !== deleteTarget.id);
+        setCpUserId(remaining[0]?.id ?? '');
+      }
+      toast.success(`Admin "${deleteTarget.full_name}" deleted`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to delete admin');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -176,17 +201,35 @@ export default function SettingsPage() {
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">Email</th>
                       <th className="text-left px-4 py-3 font-medium text-muted-foreground">ID</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u, i) => (
-                      <tr key={u.id}
-                        className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${i === users.length - 1 ? 'border-0' : ''}`}>
-                        <td className="px-4 py-3 font-medium">{u.full_name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs truncate max-w-[120px]">{u.id}</td>
-                      </tr>
-                    ))}
+                    {users.map((u, i) => {
+                      const isSelf = u.email === storedUser.email;
+                      return (
+                        <tr key={u.id}
+                          className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${i === users.length - 1 ? 'border-0' : ''}`}>
+                          <td className="px-4 py-3 font-medium">{u.full_name}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                          <td className="px-4 py-3 text-muted-foreground font-mono text-xs truncate max-w-[120px]">{u.id}</td>
+                          <td className="px-4 py-3 text-right">
+                            {!isSelf && (
+                              <button
+                                onClick={() => setDeleteTarget(u)}
+                                title="Delete this admin"
+                                className="inline-flex items-center justify-center w-7 h-7 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {isSelf && (
+                              <span className="text-xs text-muted-foreground italic">you</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -252,6 +295,16 @@ export default function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Delete confirm dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        title="Delete Admin"
+        description={`Permanently delete admin "${deleteTarget?.full_name}" (${deleteTarget?.email})? This cannot be undone.`}
+        onConfirm={handleDeleteAdmin}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+      />
     </DashboardLayout>
   );
 }

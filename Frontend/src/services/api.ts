@@ -42,6 +42,8 @@ export const usersApi = {
         api.post('/auth/users', { email, password, full_name }).then((r) => r.data),
     changePassword: (userId: string, newPassword: string) =>
         api.put(`/auth/users/${userId}/password`, { user_id: userId, new_password: newPassword }).then((r) => r.data),
+    delete: (userId: string) =>
+        api.delete(`/auth/users/${userId}`).then((r) => r.data),
 };
 
 // ── Students ────────────────────────────────────────────────
@@ -51,6 +53,8 @@ export const studentsApi = {
     create: (data: any) => api.post('/students/', data).then((r) => r.data),
     update: (id: string, data: any) => api.put(`/students/${id}`, data).then((r) => r.data),
     delete: (id: string) => api.delete(`/students/${id}`).then((r) => r.data),
+    setStatus: (id: string, status: 'Active' | 'Inactive') =>
+        api.patch(`/students/${id}/status`, { status }).then((r) => r.data),
 };
 
 // ── Courses ─────────────────────────────────────────────────

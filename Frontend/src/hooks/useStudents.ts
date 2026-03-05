@@ -35,3 +35,12 @@ export const useDeleteStudent = () => {
         onError: (e: any) => toast.error(e.response?.data?.detail || 'Failed to delete student'),
     });
 };
+
+export const useSetStudentStatus = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, status }: { id: string; status: 'Active' | 'Inactive' }) => studentsApi.setStatus(id, status),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ['students'] }); qc.invalidateQueries({ queryKey: ['dashboard'] }); },
+        onError: (e: any) => toast.error(e.response?.data?.detail || 'Failed to update student status'),
+    });
+};

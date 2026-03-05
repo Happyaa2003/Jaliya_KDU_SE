@@ -52,6 +52,12 @@ def delete_student(db: Session, student: Student) -> Student:
     return student
 
 
+def set_student_status(db: Session, student: Student, status: str) -> Student:
+    student.status = status
+    db.flush()
+    return student
+
+
 def get_enrolled_course_codes(db: Session, student_id: str) -> List[str]:
     from app.models.course import Course
     enrollments = db.query(Enrollment).filter(Enrollment.student_id == student_id).all()

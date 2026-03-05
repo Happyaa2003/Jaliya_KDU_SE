@@ -37,3 +37,12 @@ def update_password(db: Session, user_id: str, new_password: str) -> Optional[Us
     db.commit()
     db.refresh(user)
     return user
+
+
+def delete_user(db: Session, user_id: str) -> bool:
+    user = get_user_by_id(db, user_id)
+    if not user:
+        return False
+    db.delete(user)
+    db.commit()
+    return True

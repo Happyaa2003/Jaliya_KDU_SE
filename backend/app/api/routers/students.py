@@ -119,3 +119,27 @@ def delete_student(student_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(updated)
     return build_student_out(updated, db)
+
+
+@router.patch("/{student_id}/status", response_model=StudentOut)
+def set_student_status(student_id: str, data: StudentUpdate, db: Session = Depends(get_db)):
+    student = student_repo.get_student_by_id(db, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    new_status = data.status
+    if new_status not in ("Active", "Inactive"):
+        raise HTTPException(status_code=422, detail="status must be 'Active' or 'Inactive'")
+    old = json.dumps({"status": student.status})
+    updated = student_repo.set_student_status(db, student, new_status)
+    audit_repo.create_log(
+        db,
+        action_type="Update",
+        entity="Student",
+        entity_id=student.student_number,
+        performed_by=CURRENT_USER,
+        old_value=old,
+        new_value=json.dumps({"status": new_status}),
+    )
+    db.commit()
+    db.refresh(updated)
+    return build_student_out(updated, db)
